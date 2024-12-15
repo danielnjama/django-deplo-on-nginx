@@ -1,0 +1,13 @@
+asgiref==3.8.1
+backports.zoneinfo==0.2.1
+cffi==1.17.1
+cryptography==44.0.0
+Django==4.2.13
+django-ckeditor==6.7.1
+django-js-asset==2.2.0
+pillow==10.3.0
+pycparser==2.22
+PyMySQL==1.1.1
+python-decouple==3.8
+sqlparse==0.5.3
+typing-extensions==4.12.2
