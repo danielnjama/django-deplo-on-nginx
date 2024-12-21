@@ -310,12 +310,6 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-## Obtain an SSL Certificate with Let's Encrypt
-```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d yourdomain.com www.yourdomain.com
-```
-
 ## 403 Error in Django Admin
 1. CSRF Token Issue - ensure to update a list of ALLOWED_HOSTS
 ```bash
@@ -328,4 +322,103 @@ CSRF_TRUSTED_ORIGINS = ['https://your-domain.com']
 3. Static Files Setup - Ensure to collectstatic
 ```bash
 python manage.py collectstatic
+```
+## Obtain an SSL Certificate with Let's Encrypt
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d yourdomain.com www.yourdomain.com
+```
+
+## Premium SSL
+### Generate the CSR and certificate key
+- Navigate to the default SSL folder; usually under: /etc/ssl/certs or create your custom SSL folder.
+```bash
+# create the cert folder and navigate to the created folder
+mkdir /home/ubuntu/certs
+cd /home/ubuntu/certs
+```
+
+```bash
+#Run the following command to generate the csr and the certificate key
+openssl req -new -newkey rsa:2048 -nodes -keyout yourdomain.com..key -out yourdomain.com..csr
+```
+- Use the obtained csr to get your domains certificate from your ssl provider. You should be provided with the cert and the bundled ca files.
+- Upload the given files in the set directory: where the .csr and the .key are.
+### Edit Your Nginx Configuration
+```bash
+sudo nano /etc/nginx/sites-available/djangoapp
+```
+- Update the nginx settings to update the SSL configurations.
+```python
+## Replace the set domain name with your domain name. Ensure the ssl certificate paths exists and with the correct names.
+
+#Listen to IP traffic and redirect it to the domain name
+server {
+    listen 80;
+    server_name 44.203.192.255;
+
+    return 301 http://dtechnologies.co.ke$request_uri;
+}
+
+
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    server_name dtechnologies.co.ke www.dtechnologies.co.ke;
+
+    return 301 https://$host$request_uri;
+}
+
+# HTTPS Server
+server {
+    listen 443 ssl;
+    server_name dtechnologies.co.ke www.dtechnologies.co.ke;
+
+    # SSL Certificate Files
+    ssl_certificate /home/ubuntu/certs/dtechnologies.co.ke.crt;
+    ssl_certificate_key /home/ubuntu/certs/dtechnologies.co.ke.key;
+    ssl_trusted_certificate /home/ubuntu/certs/dtechnologies.co.ke.ca;
+
+    # SSL Configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    # Security Headers (optional)
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options DENY;
+    add_header X-XSS-Protection "1; mode=block";
+
+    # Django Application Configuration
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location /static/ {
+        root /home/ubuntu/djangoapp;
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/home/ubuntu/djangoapp/djangoapp.sock;
+    }
+}
+```
+### Test configuration
+```bash
+sudo nginx -t
+```
+### Restart Nginx
+```bash
+sudo systemctl reload/restart nginx
+```
+## Resolve Permission related errors
+```bash
+#Set the correct ownership so that only root can access them
+sudo chown root:root /home/ubuntu/certs/*.*
+
+#The private key (.key) should only be readable by root
+sudo chmod 600 /home/ubuntu/certs/*.key
+
+# The certificate files (.crt and .ca_bundle or similar) should be readable by others
+sudo chmod 644 /home/ubuntu/certs/*.crt
+sudo chmod 644 /home/ubuntu/certs/*.ca
 ```
